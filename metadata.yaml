@@ -1,0 +1,7 @@
+name: simple
+summary: A simple example charm
+description: |
+    Simple is an example charm used in OSM Hackfests
+series:
+- xenial
+- bionic
