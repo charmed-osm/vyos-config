@@ -9,6 +9,8 @@ To get the charm:
 ```bash
 git clone https://github.com/AdamIsrael/charm-simple
 cd charm-simple
+# Install the submodules
+git submodule update --init
 ```
 
 To configure the charm, you'll need to have an SSH-accessible machine. You'll need the hostname, and the username and password to login to. Password authentication is useful for testing but key-based authentication is preferred when deploying through OSM.
