@@ -13,6 +13,7 @@ from ops.model import (
     WaitingStatus,
     ModelError,
 )
+import os
 import subprocess
 import charms.requirementstxt
 
@@ -27,14 +28,37 @@ class SimpleCharm(CharmBase):
 
         # Load all of the events we want to observe
         for event in (
+            # Charm events
             self.on.config_changed,
-            self.on.get_ssh_public_key_function,
             self.on.install,
-            self.on.touch_function,
             self.on.upgrade_charm,
+
+            # Charm actions
+            self.on.touch_function,
+
+            # OSM actions
+            self.on.start_function,
+            self.on.stop_function,
+            self.on.restart_function,
+            self.on.reboot_function,
+            self.on.upgrade_function,
+
+            # SSH Proxy actions
+            self.on.generate_ssh_key_function,
+            self.on.get_ssh_public_key_function,
+            self.on.run_function,
             self.on.verify_ssh_credentials_function,
         ):
             self.framework.observe(event, self)
+
+    def get_ssh_proxy(self):
+        # TODO: Validate if the config is set
+        proxy = SSHProxy(
+            hostname=self.model.config["ssh-hostname"],
+            username=self.model.config["ssh-username"],
+            password=self.model.config["ssh-password"],
+        )
+        return proxy
 
     def on_config_changed(self, event):
         print("on_config_changed called.")
@@ -43,12 +67,6 @@ class SimpleCharm(CharmBase):
         # Cory says Juju may one day pass that info.
         for key in self.model.config:
             print("{}={}".format(key, self.model.config[key]))
-
-    def on_get_ssh_public_key_function(self, event):
-        """Get the SSH public key for this unit."""
-        publickey = SSHProxy.get_ssh_public_key()
-
-        event.set_results({"pubkey": publickey})
 
     def on_install(self, event):
         print("on_install called.")
@@ -71,11 +89,7 @@ class SimpleCharm(CharmBase):
 
         # Unit should go into a waiting state until verify_ssh_credentials is successful
         unit.status = WaitingStatus("Waiting for SSH credentials")
-        proxy = SSHProxy(
-            hostname=self.model.config["ssh-hostname"],
-            username=self.model.config["ssh-username"],
-            password=self.model.config["ssh-password"],
-        )
+        proxy = self.get_ssh_proxy()
 
         verified = proxy.verify_credentials()
         if verified:
@@ -87,11 +101,7 @@ class SimpleCharm(CharmBase):
         filename = event.params["filename"]
 
         if len(self.model.config["ssh-hostname"]):
-            proxy = SSHProxy(
-                hostname=self.model.config["ssh-hostname"],
-                username=self.model.config["ssh-username"],
-                password=self.model.config["ssh-password"],
-            )
+            proxy = self.get_ssh_proxy()
 
             stdout, stderr = proxy.run("touch {}".format(filename))
             if len(stderr):
@@ -114,12 +124,67 @@ class SimpleCharm(CharmBase):
         # When maintenance is done, return to an Active state
         unit.status = ActiveStatus()
 
+    ###############
+    # OSM methods #
+    ###############
+
+    def on_start_function(self, event):
+        """Start the VNF service on the VM."""
+        pass
+
+    def on_stop_function(self, event):
+        """Stop the VNF service on the VM."""
+        pass
+
+    def on_restart_function(self, event):
+        """Restart the VNF service on the VM."""
+        pass
+
+    def on_reboot_function(self, event):
+        """Reboot the VM."""
+        proxy = self.get_ssh_proxy()
+        stdout, stderr = proxy.run("sudo reboot")
+
+        if len(stderr):
+            event.fail(stderr)
+
+    def on_upgrade_function(self, event):
+        """Upgrade the VNF service on the VM."""
+        pass
+
+    #####################
+    # SSH Proxy methods #
+    #####################
+    def on_generate_ssh_key_function(self, event):
+        """Generate a new SSH keypair for this unit."""
+
+        if not SSHProxy.generate_ssh_key():
+            event.fail("Unable to generate ssh key")
+
+    def on_get_ssh_public_key_function(self, event):
+        """Get the SSH public key for this unit."""
+
+        pubkey = SSHProxy.get_ssh_public_key()
+
+        event.set_results({"pubkey": SSHProxy.get_ssh_public_key()})
+
+    def on_run_function(self, event):
+        """Run an arbitrary command on the remote host."""
+
+        cmd = event.params["command"]
+
+        proxy = self.get_ssh_proxy()
+        stdout, stderr = proxy.run(cmd)
+
+        event.set_results({"output": stdout})
+
+        if len(stderr):
+            event.fail(stderr)
+
     def on_verify_ssh_credentials_function(self, event):
-        proxy = SSHProxy(
-            hostname=self.model.config["ssh-hostname"],
-            username=self.model.config["ssh-username"],
-            password=self.model.config["ssh-password"],
-        )
+        """Verify the SSH credentials for this unit."""
+
+        proxy = self.get_ssh_proxy()
 
         verified = proxy.verify_credentials()
         if verified:
