@@ -6,26 +6,19 @@ sys.path.append("lib")
 
 from ops.charm import CharmBase
 from ops.main import main
-
-try:
-    from charms.osm.sshproxy import SSHProxy
-except ImportError:
-    print("Missing charms.osm.sshproxy library")
-
-
-# This process doesn't feel right.
-# Eat the error if the import fails, and use the on_install
-# event to install dependencies.
-try:
-    import paramiko
-except ImportError:
-    print("Missing paramiko library")
-
+from ops.model import (
+    ActiveStatus,
+    BlockedStatus,
+    MaintenanceStatus,
+    WaitingStatus,
+    ModelError,
+)
 import subprocess
+import charms.requirementstxt
 
 
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+import paramiko
+from charms.osm.sshproxy import SSHProxy
 
 
 class SimpleCharm(CharmBase):
@@ -59,12 +52,36 @@ class SimpleCharm(CharmBase):
 
     def on_install(self, event):
         print("on_install called.")
-        install("paramiko")
+        unit = self.model.unit
 
-        # This is a n0p if the key is already generated
+        unit.status = MaintenanceStatus("Installing dependencies...")
+        # charms.requirements.install_requirements()
+        # install("paramiko")
+
         if not SSHProxy.has_ssh_key():
+            unit.status = MaintenanceStatus("Generating SSH keys...")
+
             print("Generating SSH Keys")
             SSHProxy.generate_ssh_key()
+
+        unit.status = ActiveStatus()
+
+    def on_start(self, event):
+        unit = self.model.unit
+
+        # Unit should go into a waiting state until verify_ssh_credentials is successful
+        unit.status = WaitingStatus("Waiting for SSH credentials")
+        proxy = SSHProxy(
+            hostname=self.model.config["ssh-hostname"],
+            username=self.model.config["ssh-username"],
+            password=self.model.config["ssh-password"],
+        )
+
+        verified = proxy.verify_credentials()
+        if verified:
+            unit.status = ActiveStatus()
+        else:
+            unit.status = BlockedStatus("Invalid SSH credentials.")
 
     def on_touch_function(self, event):
         filename = event.params["filename"]
@@ -80,12 +97,22 @@ class SimpleCharm(CharmBase):
             if len(stderr):
                 event.set_results({"success": False})
                 event.fail(stderr)
+            else:
+                event.set_results({"success": True})
         else:
-            event.set_results({"success": True, "hostname": stdout})
+            event.set_results({"success": False})
 
     def on_upgrade_charm(self, event):
         """Upgrade the charm."""
+        unit = self.model.unit
+
+        # Mark the unit as under Maintenance.
+        unit.status = MaintenanceStatus("Upgrading charm")
+
         self.on_install(event)
+
+        # When maintenance is done, return to an Active state
+        unit.status = ActiveStatus()
 
     def on_verify_ssh_credentials_function(self, event):
         proxy = SSHProxy(

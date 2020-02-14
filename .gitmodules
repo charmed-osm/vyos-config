@@ -4,3 +4,6 @@
 [submodule "mod/charms.osm"]
 	path = mod/charms.osm
 	url = https://github.com/AdamIsrael/charms.osm
+[submodule "mod/charms"]
+	path = mod/charms
+	url = https://github.com/AdamIsrael/charms.requirementstxt
