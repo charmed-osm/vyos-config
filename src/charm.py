@@ -26,24 +26,21 @@ class SimpleCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
-        # Load all of the events we want to observe
+        # Register all of the events we want to observe
         for event in (
             # Charm events
             self.on.config_changed,
             self.on.install,
             self.on.upgrade_charm,
-
-            # Charm actions
+            # Charm actions (primitives)
             self.on.touch_function,
-
-            # OSM actions
+            # OSM actions (primitives)
             self.on.start_function,
             self.on.stop_function,
             self.on.restart_function,
             self.on.reboot_function,
             self.on.upgrade_function,
-
-            # SSH Proxy actions
+            # SSH Proxy actions (primitives)
             self.on.generate_ssh_key_function,
             self.on.get_ssh_public_key_function,
             self.on.run_function,
@@ -52,7 +49,7 @@ class SimpleCharm(CharmBase):
             self.framework.observe(event, self)
 
     def get_ssh_proxy(self):
-        # TODO: Validate if the config is set
+        """Get the SSHProxy instance"""
         proxy = SSHProxy(
             hostname=self.model.config["ssh-hostname"],
             username=self.model.config["ssh-username"],
@@ -61,33 +58,22 @@ class SimpleCharm(CharmBase):
         return proxy
 
     def on_config_changed(self, event):
-        print("on_config_changed called.")
-
-        # How do we know which key(s) changed? - We don't, at least right now.
-        # Cory says Juju may one day pass that info.
-        for key in self.model.config:
-            print("{}={}".format(key, self.model.config[key]))
-
+        """Handle changes in configuration"""
         unit = self.model.unit
 
         # Unit should go into a waiting state until verify_ssh_credentials is successful
-        print("Going into a waiting status")
         unit.status = WaitingStatus("Waiting for SSH credentials")
         proxy = self.get_ssh_proxy()
 
         verified = proxy.verify_credentials()
         if verified:
-            print("Verified, going active")
             unit.status = ActiveStatus()
         else:
             unit.status = BlockedStatus("Invalid SSH credentials.")
 
-
     def on_install(self, event):
-        print("on_install called.")
+        """Called when the charm is being installed"""
         unit = self.model.unit
-
-        unit.status = MaintenanceStatus("Installing dependencies...")
 
         if not SSHProxy.has_ssh_key():
             unit.status = MaintenanceStatus("Generating SSH keys...")
@@ -97,10 +83,8 @@ class SimpleCharm(CharmBase):
 
         unit.status = ActiveStatus()
 
-    def on_start(self, event):
-        print("on_start called")
-
     def on_touch_function(self, event):
+        """Touch a file."""
         filename = event.params["filename"]
 
         if len(self.model.config["ssh-hostname"]):
@@ -130,7 +114,6 @@ class SimpleCharm(CharmBase):
     ###############
     # OSM methods #
     ###############
-
     def on_start_function(self, event):
         """Start the VNF service on the VM."""
         pass
