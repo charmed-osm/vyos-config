@@ -68,13 +68,26 @@ class SimpleCharm(CharmBase):
         for key in self.model.config:
             print("{}={}".format(key, self.model.config[key]))
 
+        unit = self.model.unit
+
+        # Unit should go into a waiting state until verify_ssh_credentials is successful
+        print("Going into a waiting status")
+        unit.status = WaitingStatus("Waiting for SSH credentials")
+        proxy = self.get_ssh_proxy()
+
+        verified = proxy.verify_credentials()
+        if verified:
+            print("Verified, going active")
+            unit.status = ActiveStatus()
+        else:
+            unit.status = BlockedStatus("Invalid SSH credentials.")
+
+
     def on_install(self, event):
         print("on_install called.")
         unit = self.model.unit
 
         unit.status = MaintenanceStatus("Installing dependencies...")
-        # charms.requirements.install_requirements()
-        # install("paramiko")
 
         if not SSHProxy.has_ssh_key():
             unit.status = MaintenanceStatus("Generating SSH keys...")
@@ -85,17 +98,7 @@ class SimpleCharm(CharmBase):
         unit.status = ActiveStatus()
 
     def on_start(self, event):
-        unit = self.model.unit
-
-        # Unit should go into a waiting state until verify_ssh_credentials is successful
-        unit.status = WaitingStatus("Waiting for SSH credentials")
-        proxy = self.get_ssh_proxy()
-
-        verified = proxy.verify_credentials()
-        if verified:
-            unit.status = ActiveStatus()
-        else:
-            unit.status = BlockedStatus("Invalid SSH credentials.")
+        print("on_start called")
 
     def on_touch_function(self, event):
         filename = event.params["filename"]
