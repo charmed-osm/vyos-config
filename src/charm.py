@@ -33,18 +33,18 @@ class SimpleCharm(CharmBase):
             self.on.install,
             self.on.upgrade_charm,
             # Charm actions (primitives)
-            self.on.touch_function,
+            self.on.touch_action,
             # OSM actions (primitives)
-            self.on.start_function,
-            self.on.stop_function,
-            self.on.restart_function,
-            self.on.reboot_function,
-            self.on.upgrade_function,
+            self.on.start_action,
+            self.on.stop_action,
+            self.on.restart_action,
+            self.on.reboot_action,
+            self.on.upgrade_action,
             # SSH Proxy actions (primitives)
-            self.on.generate_ssh_key_function,
-            self.on.get_ssh_public_key_function,
-            self.on.run_function,
-            self.on.verify_ssh_credentials_function,
+            self.on.generate_ssh_key_action,
+            self.on.get_ssh_public_key_action,
+            self.on.run_action,
+            self.on.verify_ssh_credentials_action,
         ):
             self.framework.observe(event, self)
 
@@ -83,7 +83,7 @@ class SimpleCharm(CharmBase):
 
         unit.status = ActiveStatus()
 
-    def on_touch_function(self, event):
+    def on_touch_action(self, event):
         """Touch a file."""
         filename = event.params["filename"]
 
@@ -114,19 +114,19 @@ class SimpleCharm(CharmBase):
     ###############
     # OSM methods #
     ###############
-    def on_start_function(self, event):
+    def on_start_action(self, event):
         """Start the VNF service on the VM."""
         pass
 
-    def on_stop_function(self, event):
+    def on_stop_action(self, event):
         """Stop the VNF service on the VM."""
         pass
 
-    def on_restart_function(self, event):
+    def on_restart_action(self, event):
         """Restart the VNF service on the VM."""
         pass
 
-    def on_reboot_function(self, event):
+    def on_reboot_action(self, event):
         """Reboot the VM."""
         proxy = self.get_ssh_proxy()
         stdout, stderr = proxy.run("sudo reboot")
@@ -134,27 +134,27 @@ class SimpleCharm(CharmBase):
         if len(stderr):
             event.fail(stderr)
 
-    def on_upgrade_function(self, event):
+    def on_upgrade_action(self, event):
         """Upgrade the VNF service on the VM."""
         pass
 
     #####################
     # SSH Proxy methods #
     #####################
-    def on_generate_ssh_key_function(self, event):
+    def on_generate_ssh_key_action(self, event):
         """Generate a new SSH keypair for this unit."""
 
         if not SSHProxy.generate_ssh_key():
             event.fail("Unable to generate ssh key")
 
-    def on_get_ssh_public_key_function(self, event):
+    def on_get_ssh_public_key_action(self, event):
         """Get the SSH public key for this unit."""
 
         pubkey = SSHProxy.get_ssh_public_key()
 
         event.set_results({"pubkey": SSHProxy.get_ssh_public_key()})
 
-    def on_run_function(self, event):
+    def on_run_action(self, event):
         """Run an arbitrary command on the remote host."""
 
         cmd = event.params["command"]
@@ -167,7 +167,7 @@ class SimpleCharm(CharmBase):
         if len(stderr):
             event.fail(stderr)
 
-    def on_verify_ssh_credentials_function(self, event):
+    def on_verify_ssh_credentials_action(self, event):
         """Verify the SSH credentials for this unit."""
 
         proxy = self.get_ssh_proxy()
