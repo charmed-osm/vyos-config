@@ -5,6 +5,7 @@ import sys
 sys.path.append("lib")
 
 from ops.charm import CharmBase
+from ops.framework import StoredState
 from ops.main import main
 from ops.model import (
     ActiveStatus,
@@ -15,16 +16,49 @@ from ops.model import (
 )
 import os
 import subprocess
-import charms.requirementstxt
+# import charms.requirementstxt
 
+def install_dependencies():
+    # Make sure Python3 + PIP are available
+    if not os.path.exists("/usr/bin/python3") or not os.path.exists("/usr/bin/pip3"):
+        # This is needed when running as a k8s charm, as the ubuntu:latest 
+        # image doesn't include either package.
 
-import paramiko
-from charms.osm.sshproxy import SSHProxy
+        # Update the apt cache
+        subprocess.check_call(["apt-get", "update"])
+
+        # Install the Python3 package
+        subprocess.check_call(
+            ["apt-get", "install", "-y", "python3", "python3-pip"],
+        )
+
+    REQUIREMENTS_TXT = "{}/requirements.txt".format(os.environ["JUJU_CHARM_DIR"])
+    if os.path.exists(REQUIREMENTS_TXT):
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_TXT],
+        )
+
+try:
+    from charms.osm.sshproxy import SSHProxy
+except Exception as ex:
+    install_dependencies()
+    from charms.osm.sshproxy import SSHProxy
 
 
 class SimpleCharm(CharmBase):
+    state = StoredState()
+
     def __init__(self, *args):
         super().__init__(*args)
+
+        self.state.set_default(is_started=False)
+
+        if not self.state.is_started:
+            # import pdb; pdb.set_trace()
+            # charms.requirementstxt.install_requirements()
+            self.state.is_started = True
+
+            # Install dependencies
 
         # Register all of the events we want to observe
         for event in (
@@ -74,6 +108,10 @@ class SimpleCharm(CharmBase):
     def on_install(self, event):
         """Called when the charm is being installed"""
         unit = self.model.unit
+
+        # if 'charms.osm.sshproxy' not in sys.modules:
+        #     print("Deferring install event")
+        #     event.defer()
 
         if not SSHProxy.has_ssh_key():
             unit.status = MaintenanceStatus("Generating SSH keys...")
