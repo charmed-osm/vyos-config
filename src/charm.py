@@ -118,19 +118,14 @@ class SimpleCharm(CharmBase):
 
     def on_touch_action(self, event):
         """Touch a file."""
-        filename = event.params["filename"]
-
-        if len(self.model.config["ssh-hostname"]):
+        try:
+            filename = event.params["filename"]
             proxy = self.get_ssh_proxy()
 
             stdout, stderr = proxy.run("touch {}".format(filename))
-            if len(stderr):
-                event.set_results({"success": False})
-                event.fail(stderr)
-            else:
-                event.set_results({"success": True})
-        else:
-            event.set_results({"success": False})
+            event.set_results({"output": stdout})
+        except Exception as ex:
+            event.fail(ex)
 
     def on_upgrade_charm(self, event):
         """Upgrade the charm."""
