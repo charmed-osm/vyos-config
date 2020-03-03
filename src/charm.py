@@ -56,12 +56,12 @@ class SimpleCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
+        # An example of setting charm state
+        # that's persistent across events
         self.state.set_default(is_started=False)
 
         if not self.state.is_started:
             self.state.is_started = True
-
-            # Install dependencies
 
         # Register all of the events we want to observe
         for event in (
