@@ -32,6 +32,10 @@ def install_dependencies():
         # Install the Python3 package
         subprocess.check_call(["apt-get", "install", "-y", "python3", "python3-pip"],)
 
+
+    # Install the build dependencies for our requirements (paramiko)
+    subprocess.check_call(["apt-get", "install", "-y", "libffi-dev", "libssl-dev"],)
+
     REQUIREMENTS_TXT = "{}/requirements.txt".format(os.environ["JUJU_CHARM_DIR"])
     if os.path.exists(REQUIREMENTS_TXT):
         subprocess.check_call(
