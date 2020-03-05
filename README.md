@@ -7,8 +7,8 @@ This is an example of a simple proxy charm used by Open Source Mano (OSM), writt
 
 To get the charm:
 ```bash
-git clone https://github.com/AdamIsrael/charm-simple
-cd charm-simple
+git clone https://github.com/charmed-osm/charm-simple-proxy
+cd charm-simple-proxy
 # Install the submodules
 git submodule update --init
 ```
