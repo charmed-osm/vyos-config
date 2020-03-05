@@ -27,11 +27,11 @@ juju status
 
 To test the SSH credentials, run the `verify-ssh-credentials` action and inspect it's output:
 ```
-$ juju run-action simple/0 verify-ssh-credentials
+$ juju run-action simple-proxy/0 verify-ssh-credentials
 Action queued with id: "9"
 
 $ juju show-action-output 9
-UnitId: simple/0
+UnitId: simple-proxy/0
 results:
   Stdout: |
     Verified!
@@ -46,7 +46,7 @@ timing:
 To exercise the charm, run the `touch` function
 
 ```
-juju run-action simple/0 touch filename=/home/ubuntu/firsttouch
+juju run-action simple-proxy/0 touch filename=/home/ubuntu/firsttouch
 ```
 
 Then ssh to the remote machine and verify that the file has been created.

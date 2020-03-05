@@ -1,7 +1,7 @@
-name: simple
-summary: A simple example charm
+name: simple-proxy
+summary: A simple example proxy charm
 description: |
-    Simple is an example charm used in OSM Hackfests
+    Simple proxy charm is an example charm used in OSM Hackfests
 series:
 - xenial
 - bionic

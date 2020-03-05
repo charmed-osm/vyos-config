@@ -50,7 +50,7 @@ except Exception as ex:
     from charms.osm.sshproxy import SSHProxy
 
 
-class SimpleCharm(CharmBase):
+class SimpleProxyCharm(CharmBase):
     state = StoredState()
 
     def __init__(self, *args):
@@ -214,4 +214,4 @@ class SimpleCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(SimpleCharm)
+    main(SimpleProxyCharm)
