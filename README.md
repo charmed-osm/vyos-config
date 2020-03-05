@@ -1,4 +1,4 @@
-# charm-simple
+# charm-simple-proxy
 
 This is an example of a simple proxy charm used by Open Source Mano (OSM), written in the [Python Operator Framwork](https://github.com/canonical/operator)
 
