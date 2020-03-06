@@ -3,4 +3,4 @@
 	url = https://github.com/canonical/operator
 [submodule "mod/charms.osm"]
 	path = mod/charms.osm
-	url = https://github.com/AdamIsrael/charms.osm
+	url = https://github.com/charmed-osm/charms.osm
