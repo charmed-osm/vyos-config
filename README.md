@@ -1,14 +1,14 @@
-# charm-simple-proxy
+# charm-simple-ha-proxy
 
-This is an example of a simple proxy charm used by Open Source Mano (OSM), written in the [Python Operator Framwork](https://github.com/canonical/operator)
+This is an example of a simple HA proxy charm used by Open Source Mano (OSM), written in the [Python Operator Framwork](https://github.com/canonical/operator)
 
 
 ## Usage
 
 To get the charm:
 ```bash
-git clone https://github.com/charmed-osm/charm-simple-proxy
-cd charm-simple-proxy
+git clone https://github.com/charmed-osm/charm-simple-ha-proxy
+cd charm-simple-ha-proxy
 # Install the submodules
 git submodule update --init
 ```
@@ -27,11 +27,11 @@ juju status
 
 To test the SSH credentials, run the `verify-ssh-credentials` action and inspect it's output:
 ```
-$ juju run-action simple-proxy/0 verify-ssh-credentials
+$ juju run-action simple-ha-proxy/0 verify-ssh-credentials
 Action queued with id: "9"
 
 $ juju show-action-output 9
-UnitId: simple-proxy/0
+UnitId: simple-ha-proxy/0
 results:
   Stdout: |
     Verified!
@@ -45,8 +45,14 @@ timing:
 
 To exercise the charm, run the `touch` function
 
-```
-juju run-action simple-proxy/0 touch filename=/home/ubuntu/firsttouch
+```bash
+juju run-action simple-ha-proxy/0 touch filename=/home/ubuntu/firsttouch
 ```
 
 Then ssh to the remote machine and verify that the file has been created.
+
+### Scale
+
+```bash
+juju add-unit simple-ha-proxy --num-units 2
+```

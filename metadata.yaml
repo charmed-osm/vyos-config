@@ -1,7 +1,10 @@
-name: simple-proxy
+name: simple-ha-proxy
 summary: A simple example proxy charm
 description: |
     Simple proxy charm is an example charm used in OSM Hackfests
 series:
 - xenial
 - bionic
+peers:
+  proxypeer:
+    interface: proxypeer

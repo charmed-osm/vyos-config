@@ -16,6 +16,7 @@ from ops.model import (
 )
 import os
 import subprocess
+from proxy_cluster import ProxyCluster
 
 # import charms.requirementstxt
 
@@ -31,7 +32,6 @@ def install_dependencies():
 
         # Install the Python3 package
         subprocess.check_call(["apt-get", "install", "-y", "python3", "python3-pip"],)
-
 
     # Install the build dependencies for our requirements (paramiko)
     subprocess.check_call(["apt-get", "install", "-y", "libffi-dev", "libssl-dev"],)
@@ -50,7 +50,7 @@ except Exception as ex:
     from charms.osm.sshproxy import SSHProxy
 
 
-class SimpleProxyCharm(CharmBase):
+class SimpleHAProxyCharm(CharmBase):
     state = StoredState()
 
     def __init__(self, *args):
@@ -59,6 +59,8 @@ class SimpleProxyCharm(CharmBase):
         # An example of setting charm state
         # that's persistent across events
         self.state.set_default(is_started=False)
+
+        self.peers = ProxyCluster(self, "proxypeer")
 
         if not self.state.is_started:
             self.state.is_started = True
@@ -85,6 +87,8 @@ class SimpleProxyCharm(CharmBase):
         ):
             self.framework.observe(event, self)
 
+        self.framework.observe(self.on.proxypeer_relation_changed, self)
+
     def get_ssh_proxy(self):
         """Get the SSHProxy instance"""
         proxy = SSHProxy(
@@ -93,6 +97,15 @@ class SimpleProxyCharm(CharmBase):
             password=self.model.config["ssh-password"],
         )
         return proxy
+
+    def on_proxypeer_relation_changed(self, event):
+        if self.peers.is_cluster_initialized:
+            pubkey = self.peers.ssh_public_key
+            privkey = self.peers.ssh_private_key
+            SSHProxy.generate_ssh_key(public=pubkey, private=privkey)
+            self.on_config_changed(event)
+        else:
+            event.defer()
 
     def on_config_changed(self, event):
         """Handle changes in configuration"""
@@ -108,20 +121,32 @@ class SimpleProxyCharm(CharmBase):
         else:
             unit.status = BlockedStatus("Invalid SSH credentials.")
 
+
     def on_install(self, event):
         """Called when the charm is being installed"""
         unit = self.model.unit
 
         if not SSHProxy.has_ssh_key():
             unit.status = MaintenanceStatus("Generating SSH keys...")
-
-            print("Generating SSH Keys")
-            SSHProxy.generate_ssh_key()
-
-        unit.status = ActiveStatus()
+            try:
+                self.verify_leadership()
+                print("Generating SSH Keys")
+                SSHProxy.generate_ssh_key()
+                ssh_public_key = SSHProxy.get_ssh_public_key()
+                ssh_private_key = SSHProxy.get_ssh_private_key()
+                self.peers.on.cluster_initialized.emit(ssh_public_key, ssh_private_key)
+                unit.status = ActiveStatus()
+            except (LeadershipError) as e:
+                unit.status = WaitingStatus("Waiting for leader to populate the keys")
 
     def on_touch_action(self, event):
         """Touch a file."""
+        try:
+            self.verify_leadership()
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
+
         try:
             filename = event.params["filename"]
             proxy = self.get_ssh_proxy()
@@ -160,11 +185,15 @@ class SimpleProxyCharm(CharmBase):
 
     def on_reboot_action(self, event):
         """Reboot the VM."""
-        proxy = self.get_ssh_proxy()
-        stdout, stderr = proxy.run("sudo reboot")
-
-        if len(stderr):
-            event.fail(stderr)
+        try:
+            self.verify_leadership()
+            proxy = self.get_ssh_proxy()
+            stdout, stderr = proxy.run("sudo reboot")
+            if len(stderr):
+                event.fail(stderr)
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
 
     def on_upgrade_action(self, event):
         """Upgrade the VNF service on the VM."""
@@ -175,43 +204,64 @@ class SimpleProxyCharm(CharmBase):
     #####################
     def on_generate_ssh_key_action(self, event):
         """Generate a new SSH keypair for this unit."""
-
-        if not SSHProxy.generate_ssh_key():
-            event.fail("Unable to generate ssh key")
+        try:
+            self.verify_leadership()
+            if not SSHProxy.generate_ssh_key():
+                event.fail("Unable to generate ssh key")
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
 
     def on_get_ssh_public_key_action(self, event):
         """Get the SSH public key for this unit."""
-
-        pubkey = SSHProxy.get_ssh_public_key()
-
-        event.set_results({"pubkey": SSHProxy.get_ssh_public_key()})
+        try:
+            self.verify_leadership()
+            pubkey = SSHProxy.get_ssh_public_key()
+            event.set_results({"pubkey": SSHProxy.get_ssh_public_key()})
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
 
     def on_run_action(self, event):
         """Run an arbitrary command on the remote host."""
-
-        cmd = event.params["command"]
-
-        proxy = self.get_ssh_proxy()
-        stdout, stderr = proxy.run(cmd)
-
-        event.set_results({"output": stdout})
-
-        if len(stderr):
-            event.fail(stderr)
+        try:
+            self.verify_leadership()
+            cmd = event.params["command"]
+            proxy = self.get_ssh_proxy()
+            stdout, stderr = proxy.run(cmd)
+            event.set_results({"output": stdout})
+            if len(stderr):
+                event.fail(stderr)
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
 
     def on_verify_ssh_credentials_action(self, event):
         """Verify the SSH credentials for this unit."""
+        try:
+            self.verify_leadership()
+            proxy = self.get_ssh_proxy()
 
-        proxy = self.get_ssh_proxy()
+            verified = proxy.verify_credentials()
+            if verified:
+                print("Verified!")
+                event.set_results({"verified": True})
+            else:
+                print("Verification failed!")
+                event.set_results({"verified": False})
+        except (LeadershipError) as e:
+            event.fail(e)
+            return
 
-        verified = proxy.verify_credentials()
-        if verified:
-            print("Verified!")
-            event.set_results({"verified": True})
-        else:
-            print("Verification failed!")
-            event.set_results({"verified": False})
+    def verify_leadership(self):
+        if not self.model.unit.is_leader():
+            raise LeadershipError()
+
+
+class LeadershipError(ModelError):
+    def __init__(self):
+        super().__init__("not leader")
 
 
 if __name__ == "__main__":
-    main(SimpleProxyCharm)
+    main(SimpleHAProxyCharm)
