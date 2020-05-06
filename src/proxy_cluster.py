@@ -1,32 +1,10 @@
 import socket
 
-from ops.framework import Object, EventBase, EventsBase, EventSource, StoredState
-
-
-class ClusterInitialized(EventBase):
-    def __init__(self, handle, ssh_public_key, ssh_private_key):
-        super().__init__(handle)
-        self.ssh_public_key = ssh_public_key
-        self.ssh_private_key = ssh_private_key
-
-    def snapshot(self):
-        return {
-            "ssh_public_key": self.ssh_public_key,
-            "ssh_private_key": self.ssh_private_key,
-        }
-
-    def restore(self, snapshot):
-        self.ssh_public_key = snapshot["ssh_public_key"]
-        self.ssh_private_key = snapshot["ssh_private_key"]
-
-
-class ProxyClusterEvents(EventsBase):
-    cluster_initialized = EventSource(ClusterInitialized)
+from ops.framework import Object, StoredState
 
 
 class ProxyCluster(Object):
 
-    on = ProxyClusterEvents()
     state = StoredState()
 
     def __init__(self, charm, relation_name):
@@ -34,12 +12,12 @@ class ProxyCluster(Object):
         self._relation_name = relation_name
         self._relation = self.framework.model.get_relation(self._relation_name)
 
-        self.framework.observe(self.on.cluster_initialized, self)
+        self.framework.observe(charm.on.ssh_keys_initialized, self)
 
         self.state.set_default(ssh_public_key=None)
         self.state.set_default(ssh_private_key=None)
 
-    def on_cluster_initialized(self, event):
+    def on_ssh_keys_initialized(self, event):
         if not self.framework.model.unit.is_leader():
             raise RuntimeError("The initial unit of a cluster must also be a leader.")
 
@@ -74,7 +52,8 @@ class ProxyCluster(Object):
     def is_cluster_initialized(self):
         return (
             True
-            if self._relation.data[self.model.app].get("ssh_public_key")
+            if self.is_joined
+            and self._relation.data[self.model.app].get("ssh_public_key")
             and self._relation.data[self.model.app].get("ssh_private_key")
             else False
         )
