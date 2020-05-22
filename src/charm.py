@@ -18,34 +18,7 @@ import os
 import subprocess
 from proxy_cluster import ProxyCluster
 
-
-def install_dependencies():
-    # Make sure Python3 + PIP are available
-    if not os.path.exists("/usr/bin/python3") or not os.path.exists("/usr/bin/pip3"):
-        # This is needed when running as a k8s charm, as the ubuntu:latest
-        # image doesn't include either package.
-
-        # Update the apt cache
-        subprocess.check_call(["apt-get", "update"])
-
-        # Install the Python3 package
-        subprocess.check_call(["apt-get", "install", "-y", "python3", "python3-pip"],)
-
-    # Install the build dependencies for our requirements (paramiko)
-    subprocess.check_call(["apt-get", "install", "-y", "libffi-dev", "libssl-dev"],)
-
-    REQUIREMENTS_TXT = "{}/requirements.txt".format(os.environ["JUJU_CHARM_DIR"])
-    if os.path.exists(REQUIREMENTS_TXT):
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_TXT],
-        )
-
-
-try:
-    from charms.osm.sshproxy import SSHProxy
-except Exception as ex:
-    install_dependencies()
-    from charms.osm.sshproxy import SSHProxy
+from charms.osm.sshproxy import SSHProxy
 
 
 class SSHKeysInitialized(EventBase):
