@@ -16,9 +16,11 @@ from ops.model import (
 )
 import os
 import subprocess
+import traceback
 from proxy_cluster import ProxyCluster
 
 from charms.osm.sshproxy import SSHProxy
+from charms.osm import libansible
 
 
 class SSHKeysInitialized(EventBase):
@@ -67,7 +69,7 @@ class SimpleHAProxyCharm(CharmBase):
             self.on.start,
             self.on.upgrade_charm,
             # Charm actions (primitives)
-            self.on.touch_action,
+            self.on.configure_remote_action,
             # OSM actions (primitives)
             self.on.start_action,
             self.on.stop_action,
@@ -117,7 +119,10 @@ class SimpleHAProxyCharm(CharmBase):
             unit.status = BlockedStatus("Invalid SSH credentials.")
 
     def on_install(self, event):
-        pass
+        unit = self.model.unit
+        unit.status = MaintenanceStatus("Installing Ansible")
+        libansible.install_ansible_support()
+        unit.status = ActiveStatus()
 
     def on_start(self, event):
         """Called when the charm is being installed"""
@@ -146,14 +151,28 @@ class SimpleHAProxyCharm(CharmBase):
             else:
                 unit.status = WaitingStatus("Waiting for leader to populate the keys")
 
-    def on_touch_action(self, event):
-        """Touch a file."""
+    def on_configure_remote_action(self, event):
+        """Configure remote."""
 
         if self.is_leader:
-            filename = event.params["filename"]
-            proxy = self.get_ssh_proxy()
-            stdout, stderr = proxy.run("touch {}".format(filename))
-            event.set_results({"output": stdout})
+            try:
+                config = self.model.config
+                dest_ip = event.params["dest-ip"]
+                dict_vars = {"dest_ip": dest_ip}
+                proxy = self.get_ssh_proxy()
+                result = libansible.execute_playbook(
+                    "configure-remote.yaml",
+                    config["ssh-hostname"],
+                    config["ssh-username"],
+                    config["ssh-password"],
+                    dict_vars,
+                )
+                event.set_results({"output": result})
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                err = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                event.fail(message="configure-remote failed: " + str(err))
+
         else:
             event.fail("Unit is not leader")
             return

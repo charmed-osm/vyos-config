@@ -1,12 +1,13 @@
-touch:
-    description: "Touch a file on the VNF."
+# VyOS Action
+configure-remote:
+    description: "Configure remote on VyOS PNF."
     params:
-        filename:
-            description: "The name of the file to touch."
-            type: string
-            default: ""
+      dest-ip:
+        description: "Destination IP"
+        type: "string"
+        default": "0.0.0.0"
     required:
-        - filename
+    - dest-ip
 
 # Standard OSM functions
 start:
