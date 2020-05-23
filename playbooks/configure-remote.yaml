@@ -1,10 +1,8 @@
 - hosts: vyos-routers
   connection: local
   tasks:
-  - name: configure the remote device
+  - name: add a host to the list of allowed in the firewall group
     vyos_config:
       lines:
-        - set nat destination rule 1 inbound-interface eth0
-        - set nat destination rule 1 destination port 80
-        - set nat destination rule 1 protocol tcp
-        - set nat destination rule 1 translation address {{dest_ip}}
+        - set firewall group network-group MAGMA_AGW network "{{ MAGMA_AGW_IP }}/32"
+

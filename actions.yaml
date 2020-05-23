@@ -1,13 +1,13 @@
 # VyOS Action
 configure-remote:
-    description: "Configure remote on VyOS PNF."
+    description: "Add firewall rule to VyOS PNF."
     params:
-      dest-ip:
-        description: "Destination IP"
+      magmaIP:
+        description: "Magma AGW allowed IP"
         type: "string"
         default": "0.0.0.0"
     required:
-    - dest-ip
+    - magmaIP
 
 # Standard OSM functions
 start:

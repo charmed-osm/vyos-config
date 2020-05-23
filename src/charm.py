@@ -157,8 +157,8 @@ class SimpleHAProxyCharm(CharmBase):
         if self.is_leader:
             try:
                 config = self.model.config
-                dest_ip = event.params["dest-ip"]
-                dict_vars = {"dest_ip": dest_ip}
+                magmaIP = event.params["magmaIP"]
+                dict_vars = {"MAGMA_AGW_IP": magmaIP}
                 proxy = self.get_ssh_proxy()
                 result = libansible.execute_playbook(
                     "configure-remote.yaml",
